@@ -1,6 +1,7 @@
 defmodule Trains.Parser do
-
   alias Trains.Routes
+
+  @route_regex ~r/^(?<origin>[A-Z])(?<destination>[A-Z])(?<distance>[0-9]+)$/
 
   @moduledoc """
   Documentation for Trains Parser.
@@ -8,7 +9,10 @@ defmodule Trains.Parser do
 
   @doc """
   Parse route information from a comma separared route steps string
-  Each step should be a capital letter for origin, capital letter for destination, int for distance
+  Each step should be:
+   - A single capital letter for origin
+   - A single capital letter for destination
+   - A positive integer for distance
 
   ## Examples
 
@@ -36,15 +40,14 @@ defmodule Trains.Parser do
 
   """
   def parse(info) when is_binary(info) do
-    try do
-      routes = String.split(info, ~r/\s*,\s*/, trim: true)
+      pieces = String.split(info, ~r/\s*,\s*/, trim: true)
+      routes = pieces
         |> Enum.map(&String.trim(&1))
         |> Enum.map(&parse_route(&1))
         |> Enum.map(fn {:ok, route} -> route end)
       {:ok, routes}
-    rescue
-      _ -> {:error, :invalid_input}
-    end
+  rescue
+    _ -> {:error, :invalid_input}
   end
 
   def parse(_) do
@@ -52,7 +55,7 @@ defmodule Trains.Parser do
   end
 
   defp parse_route(string) do
-    values = Regex.named_captures(~r/^(?<origin>[A-Z])(?<destination>[A-Z])(?<distance>[0-9]+)$/, string)
+    values = Regex.named_captures(@route_regex, string)
     Routes.new(values["origin"], values["destination"], String.to_integer(values["distance"]))
   end
 end

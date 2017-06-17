@@ -7,6 +7,7 @@ defmodule Trains.Routes do
   @valid_name_regex ~r/^\p{Lu}$/u
 
   defmodule Route do
+    @moduledoc "Route structure"
     @enforce_keys [:origin, :destination, :distance]
     defstruct [origin: nil, destination: nil, distance: 0]
   end
@@ -85,7 +86,9 @@ defmodule Trains.Routes do
     false
   """
   def is_valid?(%Route{origin: origin, destination: destination, distance: distance}) do
-    valid_town?(origin) && valid_town?(destination) && origin != destination && valid_distance(distance)
+    valid_town?(origin) && valid_town?(destination)
+      && origin != destination
+      && valid_distance(distance)
   end
 
   defp valid_town?(town_name) when is_binary(town_name) do
