@@ -7,6 +7,7 @@ defmodule Trains.Mixfile do
      elixir: "~> 1.4",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     escript: [main_module: Trains],
      deps: deps()]
   end
 
