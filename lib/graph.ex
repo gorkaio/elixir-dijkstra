@@ -11,13 +11,13 @@ defmodule Trains.Graph do
   ## Examples
 
     # Graph is generated from routes
-    iex> Trains.Graph.new([%Trains.Routes.Route{origin: "A", destination: "B", distance: 3}])
+    iex> Trains.Graph.new([%Trains.Routes.Route{stops: ["A","B"], distance: 3}])
     {:ok, %{"A" => %{3 => ["B"]}}}
     iex> Trains.Graph.new(
     ...>    [
-    ...>      %Trains.Routes.Route{origin: "A", destination: "B", distance: 3},
-    ...>      %Trains.Routes.Route{origin: "B", destination: "C", distance: 5},
-    ...>      %Trains.Routes.Route{origin: "B", destination: "D", distance: 10}
+    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
+    ...>      %Trains.Routes.Route{stops: ["B", "C"], distance: 5},
+    ...>      %Trains.Routes.Route{stops: ["B", "D"], distance: 10}
     ...>    ]
     ...> )
     {
@@ -31,8 +31,8 @@ defmodule Trains.Graph do
     # Duplicate routes with same distance are ignored
     iex> Trains.Graph.new(
     ...>    [
-    ...>      %Trains.Routes.Route{origin: "A", destination: "B", distance: 3},
-    ...>      %Trains.Routes.Route{origin: "A", destination: "B", distance: 3}
+    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
+    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3}
     ...>    ]
     ...> )
     {
@@ -45,8 +45,8 @@ defmodule Trains.Graph do
     # Duplicate routes with different distances are rejected
     iex> Trains.Graph.new(
     ...>    [
-    ...>      %Trains.Routes.Route{origin: "A", destination: "B", distance: 3},
-    ...>      %Trains.Routes.Route{origin: "A", destination: "B", distance: 10}
+    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
+    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 10}
     ...>    ]
     ...> )
     {:error, :duplicate_route}
@@ -120,36 +120,98 @@ defmodule Trains.Graph do
   ## Examples
 
     iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "B")
-    3
+    {:ok, 3}
 
     iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "F")
-    1
+    {:ok, 1}
 
     iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "Z")
-    nil
+    {:error, :no_such_route}
 
     iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "A")
-    nil
+    {:error, :no_such_route}
 
     iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "B", "A")
-    nil
+    {:error, :no_such_route}
   """
   def distance(graph, origin, destination) do
     distance = Map.get(graph, origin, %{})
         |> Enum.find(fn x -> Enum.member?(elem(x, 1), destination) end)
-    if distance != nil, do: elem(distance, 0), else: nil
+    if distance != nil, do: {:ok, elem(distance, 0)}, else: {:error, :no_such_route}
   end
 
-  defp add_route(graph, [%Route{origin: origin, destination: destination, distance: distance} | rest]) do
+  @doc """
+  Calculate route between two towns
+
+  ## Examples
+
+    # Single town paths are not allowed
+    iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, ["A"])
+    {:error, :invalid_path}
+
+    # Empty paths are not allowed
+    iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, [])
+    {:error, :invalid_path}
+
+    # It traces simple routes
+    iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, ["A", "B"])
+    {:ok, %Trains.Routes.Route{stops: ["A", "B"], distance: 3}}
+
+    # It traces complex routes
+    iex> Trains.Graph.route(
+    ...>  %{
+    ...>    "A" => %{3 => ["B"], 5 => ["C", "D"]},
+    ...>    "B" => %{5 => ["C"], 10 => ["D"], 4 => ["A"]},
+    ...>    "C" => %{2 => ["B"], 7 => ["D"]}
+    ...>  },
+    ...>  ["A", "C", "B", "A"]
+    ...> )
+    {:ok, %Trains.Routes.Route{stops: ["A", "C", "B", "A"], distance: 11}}
+  """
+  def route(graph, [origin|rest] = path) when is_list(path) do
+    if Enum.count(path) > 1 do
+      [next_stop|next_path] = rest
+      with {:ok, distance} <- distance(graph, origin, next_stop),
+           {:ok, route} <- _route(graph, next_path, %Route{stops: [origin,next_stop], distance: distance}),
+      do: {:ok, route}
+    else
+      {:error, :invalid_path}
+    end
+  end
+
+  def route(_graph, _) do
+    {:error, :invalid_path}
+  end
+
+  defp _route(graph, [stop|rest], %Route{} = route) do
+    with {:ok, distance} <- distance(graph, Trains.Routes.destination(route), stop),
+         {:ok, route} <- _route(graph, rest, %Route{stops: route.stops ++ [stop], distance: route.distance + distance}),
+    do: {:ok, route}
+  end
+
+  defp _route(graph, [stop|[]], %Route{} = route) do
+    with {:ok, distance} <- distance(graph, Trains.Routes.destination(route), stop),
+         {:ok, route} <- _route(graph, [], %Route{stops: route.stops ++ [stop], distance: route.distance + distance }),
+    do: {:ok, route}
+  end
+
+  defp _route(_graph, [], %Route{} = route) do
+    {:ok, route}
+  end
+
+  defp add_route(graph, [%Route{} = route | rest]) do
+    origin = Trains.Routes.origin(route)
+    destination = Trains.Routes.destination(route)
     graph =
       if Enum.member?(nearby(graph, origin), destination) do
-        if distance(graph, origin, destination) != distance, do: {:error, :duplicate_route}, else: graph
+        {:ok, distance} = distance(graph, origin, destination)
+        if distance != route.distance, do: {:error, :duplicate_route}, else: graph
       else
         Map.update(
           graph,
           origin,
-          %{distance => [destination]},
-          &add_destination_to_origin(&1, destination, distance)
+          %{route.distance => [destination]},
+          &add_destination_to_origin(&1, destination, route.distance)
         )
       end
 
