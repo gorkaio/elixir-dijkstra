@@ -183,6 +183,94 @@ defmodule Trains.Graph do
     {:error, :invalid_path}
   end
 
+  @doc """
+  Calculate trips for given origin and destination
+
+  Optionally, you may provide `max_stops` as the maximum number of stops desired, or
+  `num_stops`for an exact match.
+
+  ## Examples
+
+    # It does not work with both num_stops and max_stops
+    iex> Trains.Graph.trips(%{}, "A", "A", [num_stops: 3, max_stops: 3])
+    {:error, :invalid_options}
+
+    # It does not work with num_stops less than one
+    iex> Trains.Graph.trips(%{}, "A", "A", [num_stops: 0])
+    {:error, :invalid_options}
+
+    # It does not work with max_stops less than one
+    iex> Trains.Graph.trips(%{}, "A", "A", [max_stops: 0])
+    {:error, :invalid_options}
+
+    # It finds simple trips
+    iex> Trains.Graph.trips(
+    ...>  %{
+    ...>    "A" => %{3 => ["B"], 5 => ["C"]},
+    ...>    "B" => %{5 => ["C"], 9 => ["D"], 4 => ["A"]},
+    ...>    "C" => %{2 => ["B"], 3 => ["D"]}
+    ...>  },
+    ...>  "B",
+    ...>  "C",
+    ...>  [max_stops: 1]
+    ...> )
+    {:ok, [%Trains.Routes.Route{stops: ["B", "C"], distance: 5}]}
+
+    # It finds more complex trips
+    iex> Trains.Graph.trips(
+    ...>  %{
+    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+    ...>    "B" => %{4 => ["C"]},
+    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+    ...>    "E" => %{3 => ["B"]},
+    ...>  },
+    ...>  "C",
+    ...>  "C",
+    ...>  [max_stops: 3]
+    ...> )
+    {
+      :ok,
+      [
+        %Trains.Routes.Route{stops: ["C", "E", "B", "C"], distance: 9},
+        %Trains.Routes.Route{stops: ["C", "D", "C"], distance: 16},
+      ]
+    }
+  """
+  def trips(graph, origin, destination, opts \\ [max_stops: nil, num_stops: nil]) do
+    if (trips_valid_opts?(opts)) do
+      routes = nearby(graph, origin)
+        |> Enum.map(&(_trips(graph, (with {:ok, route} <- route(graph, [origin] ++ [&1]), do: route), destination, opts)))
+        |> List.flatten()
+      {:ok, routes}
+    else
+      {:error, :invalid_options}
+    end
+  end
+
+  defp _trips(graph, %Route{} = route, destination, opts) do
+    if continue_trip_search?(route, opts) do
+      last_stop = Trains.Routes.destination(route)
+      nearby(graph, last_stop)
+        |> Enum.map(&(_trips(graph, (with {:ok, route} <- _route(graph, [&1], route), do: route), destination, opts)))
+    else
+      if Trains.Routes.destination(route) == destination, do: [route], else: []
+    end
+  end
+
+  defp trips_valid_opts?(opts) do
+    !(
+      (opts[:num_stops] !== nil && opts[:max_stops] !== nil) ||
+      (opts[:num_stops] !== nil && opts[:num_stops] < 1) ||
+      (opts[:max_stops] !== nil && opts[:max_stops] < 1)
+     )
+  end
+
+  defp continue_trip_search?(%Route{} = route, opts) do
+    stops = Trains.Routes.num_stops(route)
+    (opts[:max_stops] !== nil && opts[:max_stops] > stops) || (opts[:num_stops] !== nil && opts[:num_stops] > stops)
+  end
+
   defp _route(graph, [stop|rest], %Route{} = route) do
     with {:ok, distance} <- distance(graph, Trains.Routes.destination(route), stop),
          {:ok, route} <- _route(graph, rest, %Route{stops: route.stops ++ [stop], distance: route.distance + distance}),

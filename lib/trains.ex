@@ -24,6 +24,8 @@ defmodule Trains do
     test_path(graph, "A-D-C", 3)
     test_path(graph, "A-E-B-C-D", 4)
     test_path(graph, "A-E-D", 5)
+    test_trip_count(graph, "C", "C", [max_stops: 3], 6)
+    test_trip_count(graph, "A", "C", [num_stops: 4], 7)
   end
 
   defp test_path(graph, path, test_number) do
@@ -31,6 +33,13 @@ defmodule Trains do
     case Graph.route(graph, parsed_path) do
       {:ok, route} -> IO.puts(format_output(test_number, Routes.distance(route)))
       {:error, reason} -> IO.puts(format_output(test_number, error_message(reason)))
+      _ -> IO.puts(format_output(test_number, "THIS SHOULD NOT HAPPEN!"))
+    end
+  end
+
+  defp test_trip_count(graph, origin, destination, opts, test_number) do
+    case Graph.trips(graph, origin, destination, opts) do
+      {:ok, routes} -> IO.puts(format_output(test_number, Enum.count(routes)))
       _ -> IO.puts(format_output(test_number, "THIS SHOULD NOT HAPPEN!"))
     end
   end
