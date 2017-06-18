@@ -40,12 +40,12 @@ defmodule Trains.Parser do
 
   """
   def parse(info) when is_binary(info) do
-      pieces = String.split(info, ~r/\s*,\s*/, trim: true)
-      routes = pieces
-        |> Enum.map(&String.trim(&1))
-        |> Enum.map(&parse_route(&1))
-        |> Enum.map(fn {:ok, route} -> route end)
-      {:ok, routes}
+    pieces = String.split(info, ~r/\s*,\s*/, trim: true)
+    routes = pieces
+      |> Enum.map(&String.trim(&1))
+      |> Enum.map(&parse_route(&1))
+      |> Enum.map(fn {:ok, route} -> route end)
+    {:ok, routes}
   rescue
     _ -> {:error, :invalid_input}
   end
