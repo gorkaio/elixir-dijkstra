@@ -28,7 +28,10 @@ defmodule Trains do
     test_trip_count(graph, "A", "C", [num_stops: 4], 7)
     test_trip_length(graph, "A", "C", 8)
     test_trip_length(graph, "B", "B", 9)
-    test_trip_count(graph, "C", "C", [max_distance: 30],10)
+    # The other `max` modifiers include the upper bound. Here we want everything LESS THAN 30.
+    # In order to keep it consistent, `max_distance` behaves like the rest of `max` options, and thus
+    # here we are in fact looking for a max_distance of 29
+    test_trip_count(graph, "C", "C", [max_distance: 29], 10)
   end
 
   defp test_path(graph, path, test_number) do
