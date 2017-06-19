@@ -26,6 +26,9 @@ defmodule Trains do
     test_path(graph, "A-E-D", 5)
     test_trip_count(graph, "C", "C", [max_stops: 3], 6)
     test_trip_count(graph, "A", "C", [num_stops: 4], 7)
+    test_trip_length(graph, "A", "C", 8)
+    test_trip_length(graph, "B", "B", 9)
+    test_trip_count(graph, "C", "C", [max_distance: 30],10)
   end
 
   defp test_path(graph, path, test_number) do
@@ -40,6 +43,13 @@ defmodule Trains do
   defp test_trip_count(graph, origin, destination, opts, test_number) do
     case Graph.trips(graph, origin, destination, opts) do
       {:ok, routes} -> IO.puts(format_output(test_number, Enum.count(routes)))
+      _ -> IO.puts(format_output(test_number, "THIS SHOULD NOT HAPPEN!"))
+    end
+  end
+
+  defp test_trip_length(graph, origin, destination, test_number) do
+    case Graph.shortest_route(graph, origin, destination) do
+      {:ok, route} -> IO.puts(format_output(test_number, Routes.distance(route)))
       _ -> IO.puts(format_output(test_number, "THIS SHOULD NOT HAPPEN!"))
     end
   end

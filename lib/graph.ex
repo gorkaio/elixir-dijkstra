@@ -186,8 +186,11 @@ defmodule Trains.Graph do
   @doc """
   Calculate trips for given origin and destination
 
-  Optionally, you may provide `max_stops` as the maximum number of stops desired, or
-  `num_stops`for an exact match.
+  Options:
+    - `max_stops: <int>`: The maximum number of stops desired (excludes `num_stops`)
+    - `num_stops: <int>`: The exact number of stops desired (excludes `max_stops`)
+    - `max_distance: <int>`: The maximum distance desired
+    - `shortest: <boolean>`: Use shortest path
 
   ## Examples
 
@@ -232,30 +235,78 @@ defmodule Trains.Graph do
     {
       :ok,
       [
-        %Trains.Routes.Route{stops: ["C", "E", "B", "C"], distance: 9},
         %Trains.Routes.Route{stops: ["C", "D", "C"], distance: 16},
+        %Trains.Routes.Route{stops: ["C", "E", "B", "C"], distance: 9}
+      ]
+    }
+
+    # It finds complex trips with exact number of stops
+    iex> Trains.Graph.trips(
+    ...>  %{
+    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+    ...>    "B" => %{4 => ["C"]},
+    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+    ...>    "E" => %{3 => ["B"]},
+    ...>  },
+    ...>  "A",
+    ...>  "C",
+    ...>  [num_stops: 4]
+    ...> )
+    {
+      :ok,
+      [
+        %Trains.Routes.Route{distance: 25, stops: ["A", "B", "C", "D", "C"]},
+        %Trains.Routes.Route{distance: 29, stops: ["A", "D", "C", "D", "C"]},
+        %Trains.Routes.Route{distance: 18, stops: ["A", "D", "E", "B", "C"]}
       ]
     }
   """
-  def trips(graph, origin, destination, opts \\ [max_stops: nil, num_stops: nil]) do
+  def trips(graph, origin, destination, opts \\ [max_stops: nil, num_stops: nil, max_distance: nil, shortest: false]) do
     if (trips_valid_opts?(opts)) do
-      routes = nearby(graph, origin)
-        |> Enum.map(&(_trips(graph, (with {:ok, route} <- route(graph, [origin] ++ [&1]), do: route), destination, opts)))
+
+      finder = fn (graph, origin, excluded_stops) ->
+        if (opts[:shortest] == true), do: nearest(graph, origin, excluded_stops), else: nearby(graph, origin)
+      end
+      mapper = &trips(
+        graph,
+        finder,
+        destination,
+        (with {:ok, distance} <- distance(graph, origin, &1),
+              {:ok, route} <- Trains.Routes.new(origin, &1, distance), do: route),
+        opts
+      )
+
+      routes = Enum.map(finder.(graph, origin, []), mapper)
         |> List.flatten()
+
       {:ok, routes}
     else
       {:error, :invalid_options}
     end
   end
 
-  defp _trips(graph, %Route{} = route, destination, opts) do
+  defp trips(graph, finder, destination, route, opts, routes \\ []) do
+    current_stop = Trains.Routes.destination(route)
+    mapper = &trips(
+      graph,
+      finder,
+      destination,
+      (with {:ok, distance} <- distance(graph, current_stop, &1),
+            {:ok, route} <- Trains.Routes.add_stop(route, &1, distance), do: route),
+      opts,
+      routes
+    )
+
+    if trips_valid_route?(route, destination, opts), do: routes = routes ++ [route]
     if continue_trip_search?(route, opts) do
-      last_stop = Trains.Routes.destination(route)
-      nearby(graph, last_stop)
-        |> Enum.map(&(_trips(graph, (with {:ok, route} <- _route(graph, [&1], route), do: route), destination, opts)))
-    else
-      if Trains.Routes.destination(route) == destination, do: [route], else: []
+      routes = routes ++ (Enum.map(
+        finder.(graph, current_stop, route.stops -- [destination]),
+        mapper
+      ))
     end
+
+    routes
   end
 
   defp trips_valid_opts?(opts) do
@@ -266,9 +317,20 @@ defmodule Trains.Graph do
      )
   end
 
+  defp trips_valid_route?(route, destination, opts) do
+    Trains.Routes.destination(route) == destination &&
+    (opts[:num_stops] == nil || opts[:num_stops] == Trains.Routes.num_stops(route)) &&
+    (opts[:max_stops] == nil || opts[:max_stops] >= Trains.Routes.num_stops(route))
+  end
+
   defp continue_trip_search?(%Route{} = route, opts) do
-    stops = Trains.Routes.num_stops(route)
-    (opts[:max_stops] !== nil && opts[:max_stops] > stops) || (opts[:num_stops] !== nil && opts[:num_stops] > stops)
+    (opts[:max_distance] == nil || opts[:max_distance] < Trains.Routes.distance(route)) &&
+    (opts[:max_stops] == nil || opts[:max_stops] > Trains.Routes.num_stops(route)) &&
+    (opts[:num_stops] == nil || opts[:num_stops] > Trains.Routes.num_stops(route))
+  end
+
+  def shortest_route(graph, origin, destination) do
+    trips(graph, origin, destination, [shortest: true])
   end
 
   defp _route(graph, [stop|rest], %Route{} = route) do
