@@ -4,7 +4,7 @@ defmodule Trains.Graph do
   @moduledoc """
   Routes graph
 
-  `Trains.Graph handles the initial directed graph configuration and every function related to route calculation.
+  `Trains.Graph` handles the initial directed graph configuration and every function related to route calculation.
   """
 
   @doc """
@@ -453,7 +453,7 @@ defmodule Trains.Graph do
 
   defp _shortest_route(graph, destination, %Route{} = route) do
     current_stop = Trains.Routes.destination(route)
-    if (current_stop !== destination) do
+    if current_stop !== destination do
       [route|_] = nearest(graph, current_stop, route.stops -- [destination])
         |> Enum.map(
             &_shortest_route(
@@ -474,7 +474,7 @@ defmodule Trains.Graph do
 
   defp _route(graph, [stop|[]], %Route{} = route) do
     with {:ok, distance} <- distance(graph, Trains.Routes.destination(route), stop),
-         {:ok, route} <- _route(graph, [], %Route{stops: route.stops ++ [stop], distance: route.distance + distance }),
+         {:ok, route} <- _route(graph, [], %Route{stops: route.stops ++ [stop], distance: route.distance + distance}),
     do: {:ok, route}
   end
 

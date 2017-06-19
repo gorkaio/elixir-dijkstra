@@ -93,6 +93,11 @@ If you don't have `Elixir` installed, you will need to install it following the 
 
 As an alternative method, you might use Docker. We will see both methods bellow.
 
+You will first need to install dev dependencies to be able to generate docs:
+
+  - With Elixir: `mix deps.get`
+  - With Docker: `docker run -it --rm -v$(pwd):/app -w/app elixir bash -c "mix deps.get"`
+
 ### Build
 
 You can build the app using the following command:
