@@ -3,57 +3,52 @@ defmodule Trains.Graph do
 
   @moduledoc """
   Routes graph
+
+  `Trains.Graph` handles the initial directed graph configuration and every function related to route calculation.
   """
 
   @doc """
   Creates a new graph
 
+  ## Parameters
+
+    - routes: `%Trains.Routes.Route{}` used to build the graph
+
   ## Examples
 
-    # Graph is generated from routes
-    iex> Trains.Graph.new([%Trains.Routes.Route{stops: ["A","B"], distance: 3}])
-    {:ok, %{"A" => %{3 => ["B"]}}}
-    iex> Trains.Graph.new(
-    ...>    [
-    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
-    ...>      %Trains.Routes.Route{stops: ["B", "C"], distance: 5},
-    ...>      %Trains.Routes.Route{stops: ["B", "D"], distance: 10}
-    ...>    ]
-    ...> )
-    {
-      :ok,
-      %{
-          "A" => %{3 => ["B"]},
-          "B" => %{5 => ["C"], 10 => ["D"]}
-      }
-    }
+      # Graph is generated from routes
+      iex> Trains.Graph.new([%Trains.Routes.Route{stops: ["A","B"], distance: 3}])
+      {:ok, %{"A" => %{3 => ["B"]}}}
+      iex> Trains.Graph.new(
+      ...>    [
+      ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
+      ...>      %Trains.Routes.Route{stops: ["B", "C"], distance: 5},
+      ...>      %Trains.Routes.Route{stops: ["B", "D"], distance: 10}
+      ...>    ]
+      ...> )
+      {:ok, %{"A" => %{3 => ["B"]}, "B" => %{5 => ["C"], 10 => ["D"]}}}
 
-    # Duplicate routes with same distance are ignored
-    iex> Trains.Graph.new(
-    ...>    [
-    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
-    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3}
-    ...>    ]
-    ...> )
-    {
-      :ok,
-      %{
-          "A" => %{3 => ["B"]}
-      }
-    }
+      # Duplicate routes with same distance are ignored
+      iex> Trains.Graph.new(
+      ...>    [
+      ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
+      ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3}
+      ...>    ]
+      ...> )
+      {:ok, %{"A" => %{3 => ["B"]}}}
 
-    # Duplicate routes with different distances are rejected
-    iex> Trains.Graph.new(
-    ...>    [
-    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
-    ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 10}
-    ...>    ]
-    ...> )
-    {:error, :duplicate_route}
+      # Duplicate routes with different distances are rejected
+      iex> Trains.Graph.new(
+      ...>    [
+      ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 3},
+      ...>      %Trains.Routes.Route{stops: ["A", "B"], distance: 10}
+      ...>    ]
+      ...> )
+      {:error, :duplicate_route}
 
-    # Graph might be empty
-    iex> Trains.Graph.new([])
-    {:ok, %{}}
+      # Graph might be empty
+      iex> Trains.Graph.new([])
+      {:ok, %{}}
   """
   def new(routes) do
     case graph = add_route(%{}, routes) do
@@ -65,13 +60,20 @@ defmodule Trains.Graph do
   @doc """
   Get towns one step away from the given one
 
+  ## Parameters
+
+    - graph: routes graph
+    - town: Town to explore
+
   ## Examples
 
-    iex> Trains.Graph.nearby(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A")
-    ["B", "C", "F"]
+      # Gets every town one step away
+      iex> Trains.Graph.nearby(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A")
+      ["B", "C", "F"]
 
-    iex> Trains.Graph.nearby(%{"A" => %{1 => ["B","C"], 3 => ["F"]}}, "Z")
-    []
+      # Return empty list for unkown towns
+      iex> Trains.Graph.nearby(%{"A" => %{1 => ["B","C"], 3 => ["F"]}}, "Z")
+      []
   """
   def nearby(graph, town) do
     Map.get(graph, town, [])
@@ -81,22 +83,33 @@ defmodule Trains.Graph do
   end
 
   @doc """
-  Get nearest town optionally excluding some
+  Get nearest towns, sorted alphabetically and optionally excluding some of them
+
+  ## Parameters
+
+    - graph: routes graph
+    - town: Town to explore
+    - excluding: Towns to exclude from the resulting list (default: [])
 
   ## Examples
-
+      
+      # Gets every nearest town when not given any excluded towns
       iex> Trains.Graph.nearest(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A")
       ["C", "F"]
 
+      # Filters one excluded town
       iex> Trains.Graph.nearest(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", ["F"])
       ["C"]
 
+      # Filters multiple excluded towns
       iex> Trains.Graph.nearest(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", ["F", "C"])
       ["B"]
 
+      # Returns empty list if every nearest town is excluded
       iex> Trains.Graph.nearest(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", ["F", "C", "B"])
       []
 
+      # Returns empty list for unknown towns
       iex> Trains.Graph.nearest(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "Z", ["F", "C", "B"])
       []
   """
@@ -115,24 +128,33 @@ defmodule Trains.Graph do
   end
 
   @doc """
-  Get distance from origin to destination
+  Get distance from one step away towns, origin to destination
 
+  ## Parameters
+  
+    - graph: routes graph
+    - origin: Origin town
+    - destination: Destination town
+    
   ## Examples
 
-    iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "B")
-    {:ok, 3}
+      iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "B")
+      {:ok, 3}
+  
+      iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "F")
+      {:ok, 1}
 
-    iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "F")
-    {:ok, 1}
-
-    iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "Z")
-    {:error, :no_such_route}
-
-    iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "A")
-    {:error, :no_such_route}
-
-    iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "B", "A")
-    {:error, :no_such_route}
+      # Returns error if no such route exists
+      iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "Z")
+      {:error, :no_such_route}
+  
+      # Returns error when given same origin and destination town
+      iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "A", "A")
+      {:error, :no_such_route}
+  
+      # Returns error when there is no destination available from given origin
+      iex> Trains.Graph.distance(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, "B", "A")
+      {:error, :no_such_route}
   """
   def distance(graph, origin, destination) do
     distance = Map.get(graph, origin, %{})
@@ -143,30 +165,35 @@ defmodule Trains.Graph do
   @doc """
   Calculate route between two towns
 
+  ## Parameters
+  
+    - graph: routes graph
+    - path: list of towns describing a route
+    
   ## Examples
 
-    # Single town paths are not allowed
-    iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, ["A"])
-    {:error, :invalid_path}
-
-    # Empty paths are not allowed
-    iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, [])
-    {:error, :invalid_path}
-
-    # It traces simple routes
-    iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, ["A", "B"])
-    {:ok, %Trains.Routes.Route{stops: ["A", "B"], distance: 3}}
-
-    # It traces complex routes
-    iex> Trains.Graph.route(
-    ...>  %{
-    ...>    "A" => %{3 => ["B"], 5 => ["C", "D"]},
-    ...>    "B" => %{5 => ["C"], 10 => ["D"], 4 => ["A"]},
-    ...>    "C" => %{2 => ["B"], 7 => ["D"]}
-    ...>  },
-    ...>  ["A", "C", "B", "A"]
-    ...> )
-    {:ok, %Trains.Routes.Route{stops: ["A", "C", "B", "A"], distance: 11}}
+      # Single town paths are not allowed
+      iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, ["A"])
+      {:error, :invalid_path}
+  
+      # Empty paths are not allowed
+      iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, [])
+      {:error, :invalid_path}
+  
+      # It traces simple routes
+      iex> Trains.Graph.route(%{"A" => %{1 => ["F","C"], 3 => ["B"]}}, ["A", "B"])
+      {:ok, %Trains.Routes.Route{stops: ["A", "B"], distance: 3}}
+  
+      # It traces complex routes
+      iex> Trains.Graph.route(
+      ...>  %{
+      ...>    "A" => %{3 => ["B"], 5 => ["C", "D"]},
+      ...>    "B" => %{5 => ["C"], 10 => ["D"], 4 => ["A"]},
+      ...>    "C" => %{2 => ["B"], 7 => ["D"]}
+      ...>  },
+      ...>  ["A", "C", "B", "A"]
+      ...> )
+      {:ok, %Trains.Routes.Route{stops: ["A", "C", "B", "A"], distance: 11}}
   """
   def route(graph, [origin|rest] = path) when is_list(path) do
     if Enum.count(path) > 1 do
@@ -186,112 +213,117 @@ defmodule Trains.Graph do
   @doc """
   Calculate trips for given origin and destination
 
-  Options:
-    - `max_stops: <int>`: The maximum number of stops desired (excludes `num_stops`)
-    - `num_stops: <int>`: The exact number of stops desired (excludes `max_stops`)
-    - `max_distance: <int>`: The maximum distance desired
+  ## Parameters
+
+    - graph: routes graph
+    - origin: origin town
+    - destination: destination town
+    - opts: options (default: [max_stops: nil, num_stops: nil, max_distance: nil])
+      - max_stops: The maximum number of stops desired (can't be used with `num_stops`)
+      - num_stops: The exact number of stops desired (can't be used with `max_stops`)
+      - max_distance: The maximum distance desired
 
   ## Examples
 
-    # It does not work with both num_stops and max_stops
-    iex> Trains.Graph.trips(%{}, "A", "A", [num_stops: 3, max_stops: 3])
-    {:error, :invalid_options}
+      # It does not work with both num_stops and max_stops
+      iex> Trains.Graph.trips(%{}, "A", "A", [num_stops: 3, max_stops: 3])
+      {:error, :invalid_options}
 
-    # It does not work with num_stops less than one
-    iex> Trains.Graph.trips(%{}, "A", "A", [num_stops: 0])
-    {:error, :invalid_options}
+      # It does not work with num_stops less than one
+      iex> Trains.Graph.trips(%{}, "A", "A", [num_stops: 0])
+      {:error, :invalid_options}
 
-    # It does not work with max_stops less than one
-    iex> Trains.Graph.trips(%{}, "A", "A", [max_stops: 0])
-    {:error, :invalid_options}
+      # It does not work with max_stops less than one
+      iex> Trains.Graph.trips(%{}, "A", "A", [max_stops: 0])
+      {:error, :invalid_options}
 
-    # It does not work with max_distance less than one
-    iex> Trains.Graph.trips(%{}, "A", "A", [max_distance: 0])
-    {:error, :invalid_options}
+      # It does not work with max_distance less than one
+      iex> Trains.Graph.trips(%{}, "A", "A", [max_distance: 0])
+      {:error, :invalid_options}
 
-    # It finds simple trips
-    iex> Trains.Graph.trips(
-    ...>  %{
-    ...>    "A" => %{3 => ["B"], 5 => ["C"]},
-    ...>    "B" => %{5 => ["C"], 9 => ["D"], 4 => ["A"]},
-    ...>    "C" => %{2 => ["B"], 3 => ["D"]}
-    ...>  },
-    ...>  "B",
-    ...>  "C",
-    ...>  [max_stops: 1]
-    ...> )
-    {:ok, [%Trains.Routes.Route{stops: ["B", "C"], distance: 5}]}
+      # It finds simple trips
+      iex> Trains.Graph.trips(
+      ...>  %{
+      ...>    "A" => %{3 => ["B"], 5 => ["C"]},
+      ...>    "B" => %{5 => ["C"], 9 => ["D"], 4 => ["A"]},
+      ...>    "C" => %{2 => ["B"], 3 => ["D"]}
+      ...>  },
+      ...>  "B",
+      ...>  "C",
+      ...>  [max_stops: 1]
+      ...> )
+      {:ok, [%Trains.Routes.Route{stops: ["B", "C"], distance: 5}]}
 
-    # It finds more complex trips
-    iex> Trains.Graph.trips(
-    ...>  %{
-    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
-    ...>    "B" => %{4 => ["C"]},
-    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
-    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
-    ...>    "E" => %{3 => ["B"]},
-    ...>  },
-    ...>  "C",
-    ...>  "C",
-    ...>  [max_stops: 3]
-    ...> )
-    {
-      :ok,
-      [
-        %Trains.Routes.Route{stops: ["C", "D", "C"], distance: 16},
-        %Trains.Routes.Route{stops: ["C", "E", "B", "C"], distance: 9}
-      ]
-    }
+      # It finds more complex trips
+      iex> Trains.Graph.trips(
+      ...>  %{
+      ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+      ...>    "B" => %{4 => ["C"]},
+      ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+      ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+      ...>    "E" => %{3 => ["B"]},
+      ...>  },
+      ...>  "C",
+      ...>  "C",
+      ...>  [max_stops: 3]
+      ...> )
+      {
+        :ok,
+        [
+          %Trains.Routes.Route{stops: ["C", "D", "C"], distance: 16},
+          %Trains.Routes.Route{stops: ["C", "E", "B", "C"], distance: 9}
+        ]
+      }
 
-    # It finds complex trips with exact number of stops
-    iex> Trains.Graph.trips(
-    ...>  %{
-    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
-    ...>    "B" => %{4 => ["C"]},
-    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
-    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
-    ...>    "E" => %{3 => ["B"]},
-    ...>  },
-    ...>  "A",
-    ...>  "C",
-    ...>  [num_stops: 4]
-    ...> )
-    {
-      :ok,
-      [
-        %Trains.Routes.Route{distance: 25, stops: ["A", "B", "C", "D", "C"]},
-        %Trains.Routes.Route{distance: 29, stops: ["A", "D", "C", "D", "C"]},
-        %Trains.Routes.Route{distance: 18, stops: ["A", "D", "E", "B", "C"]}
-      ]
-    }
+      # It finds complex trips with exact number of stops
+      iex> Trains.Graph.trips(
+      ...>  %{
+      ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+      ...>    "B" => %{4 => ["C"]},
+      ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+      ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+      ...>    "E" => %{3 => ["B"]},
+      ...>  },
+      ...>  "A",
+      ...>  "C",
+      ...>  [num_stops: 4]
+      ...> )
+      {
+        :ok,
+        [
+          %Trains.Routes.Route{distance: 25, stops: ["A", "B", "C", "D", "C"]},
+          %Trains.Routes.Route{distance: 29, stops: ["A", "D", "C", "D", "C"]},
+          %Trains.Routes.Route{distance: 18, stops: ["A", "D", "E", "B", "C"]}
+        ]
+      }
 
-    # It finds trips with maximum distance
-    iex> Trains.Graph.trips(
-    ...>  %{
-    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
-    ...>    "B" => %{4 => ["C"]},
-    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
-    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
-    ...>    "E" => %{3 => ["B"]},
-    ...>  },
-    ...>  "C",
-    ...>  "C",
-    ...>  [max_distance: 30]
-    ...> )
-    {
-      :ok,
-      [
-        %Trains.Routes.Route{distance: 16, stops: ["C", "D", "C"]},
-        %Trains.Routes.Route{distance: 25, stops: ["C", "D", "C", "E", "B", "C"]},
-        %Trains.Routes.Route{distance: 21, stops: ["C", "D", "E", "B", "C"]},
-        %Trains.Routes.Route{distance: 30, stops: ["C", "D", "E", "B", "C", "E", "B", "C"]},
-        %Trains.Routes.Route{distance: 9, stops: ["C", "E", "B", "C"]},
-        %Trains.Routes.Route{distance: 25, stops: ["C", "E", "B", "C", "D", "C"]},
-        %Trains.Routes.Route{distance: 30, stops: ["C", "E", "B", "C", "D", "E", "B", "C"]},
-        %Trains.Routes.Route{distance: 18, stops: ["C", "E", "B", "C", "E", "B", "C"]},
-        %Trains.Routes.Route{distance: 27, stops: ["C", "E", "B", "C", "E", "B", "C", "E", "B", "C"]}
-      ]
-    }
+      # It finds trips with maximum distance
+      iex> Trains.Graph.trips(
+      ...>  %{
+      ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+      ...>    "B" => %{4 => ["C"]},
+      ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+      ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+      ...>    "E" => %{3 => ["B"]},
+      ...>  },
+      ...>  "C",
+      ...>  "C",
+      ...>  [max_distance: 30]
+      ...> )
+      {
+        :ok,
+        [
+          %Trains.Routes.Route{distance: 16, stops: ["C", "D", "C"]},
+          %Trains.Routes.Route{distance: 25, stops: ["C", "D", "C", "E", "B", "C"]},
+          %Trains.Routes.Route{distance: 21, stops: ["C", "D", "E", "B", "C"]},
+          %Trains.Routes.Route{distance: 30, stops: ["C", "D", "E", "B", "C", "E", "B", "C"]},
+          %Trains.Routes.Route{distance: 9, stops: ["C", "E", "B", "C"]},
+          %Trains.Routes.Route{distance: 25, stops: ["C", "E", "B", "C", "D", "C"]},
+          %Trains.Routes.Route{distance: 30, stops: ["C", "E", "B", "C", "D", "E", "B", "C"]},
+          %Trains.Routes.Route{distance: 18, stops: ["C", "E", "B", "C", "E", "B", "C"]},
+          %Trains.Routes.Route{distance: 27, stops: ["C", "E", "B", "C", "E", "B", "C", "E", "B", "C"]}
+        ]
+      }
   """
   def trips(graph, origin, destination, opts \\ [max_stops: nil, num_stops: nil, max_distance: nil]) do
     if trips_valid_opts?(opts) do
@@ -356,49 +388,54 @@ defmodule Trains.Graph do
   @doc """
   Find the shortest route between two towns
 
+  ## Parameters
+    - graph: routes graph
+    - origin: origin town
+    - destination: destination town
+
   ## Examples
 
-    # It finds the shortest route with direct paths
-    iex> Trains.Graph.shortest_route(
-    ...>  %{
-    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
-    ...>    "B" => %{4 => ["C"]},
-    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
-    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
-    ...>    "E" => %{3 => ["B"]},
-    ...>  },
-    ...>  "A",
-    ...>  "B"
-    ...> )
-    {:ok, %Trains.Routes.Route{distance: 5, stops: ["A", "B"]}}
-    
-    # It finds the shortest route with direct paths
-    iex> Trains.Graph.shortest_route(
-    ...>  %{
-    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
-    ...>    "B" => %{4 => ["C"]},
-    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
-    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
-    ...>    "E" => %{3 => ["B"]},
-    ...>  },
-    ...>  "A",
-    ...>  "C"
-    ...> )
-    {:ok, %Trains.Routes.Route{distance: 9, stops: ["A", "B", "C"]}}
+      # It finds the shortest route with direct paths
+      iex> Trains.Graph.shortest_route(
+      ...>  %{
+      ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+      ...>    "B" => %{4 => ["C"]},
+      ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+      ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+      ...>    "E" => %{3 => ["B"]},
+      ...>  },
+      ...>  "A",
+      ...>  "B"
+      ...> )
+      {:ok, %Trains.Routes.Route{distance: 5, stops: ["A", "B"]}}
 
-    # It finds the shortest cyclic routes
-    iex> Trains.Graph.shortest_route(
-    ...>  %{
-    ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
-    ...>    "B" => %{4 => ["C"]},
-    ...>    "C" => %{8 => ["D"], 2 => ["E"]},
-    ...>    "D" => %{8 => ["C"], 6 => ["E"]},
-    ...>    "E" => %{3 => ["B"]},
-    ...>  },
-    ...>  "C",
-    ...>  "C"
-    ...> )
-    {:ok, %Trains.Routes.Route{distance: 9, stops: ["C", "E", "B", "C"]}}
+      # It finds the shortest route with direct paths
+      iex> Trains.Graph.shortest_route(
+      ...>  %{
+      ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+      ...>    "B" => %{4 => ["C"]},
+      ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+      ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+      ...>    "E" => %{3 => ["B"]},
+      ...>  },
+      ...>  "A",
+      ...>  "C"
+      ...> )
+      {:ok, %Trains.Routes.Route{distance: 9, stops: ["A", "B", "C"]}}
+
+      # It finds the shortest cyclic routes
+      iex> Trains.Graph.shortest_route(
+      ...>  %{
+      ...>    "A" => %{5 => ["B", "D"], 7 => ["E"]},
+      ...>    "B" => %{4 => ["C"]},
+      ...>    "C" => %{8 => ["D"], 2 => ["E"]},
+      ...>    "D" => %{8 => ["C"], 6 => ["E"]},
+      ...>    "E" => %{3 => ["B"]},
+      ...>  },
+      ...>  "C",
+      ...>  "C"
+      ...> )
+      {:ok, %Trains.Routes.Route{distance: 9, stops: ["C", "E", "B", "C"]}}
   """
   def shortest_route(graph, origin, destination) do
     [route|_] = nearest(graph, origin, [])
@@ -468,7 +505,7 @@ defmodule Trains.Graph do
     graph
   end
 
-  def add_destination_to_origin(origin, destination, distance) do
+  defp add_destination_to_origin(origin, destination, distance) do
     Map.update(origin, distance, [destination], &(&1 ++ [destination]))
   end
 end

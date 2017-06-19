@@ -6,8 +6,7 @@ defmodule Trains.Routes do
   This modules allows creating basic two step routes like the ones that will be used to set up the Graph,
   and it also provides a way to add stops to a basic route and update its distance following some validation rules.
 
-  String.Chars protocol is implemented for Route so we can print out the results.
-
+  `String.Chars` protocol is implemented for Route so we can print out the results.
   """
 
   @valid_name_regex ~r/^\p{Lu}$/u
@@ -15,7 +14,7 @@ defmodule Trains.Routes do
   alias Trains.Routes.Route
 
   defmodule Route do
-    @moduledoc "Route structure"
+    @moduledoc false
     @enforce_keys [:stops, :distance]
     @type route :: %Route{stops: List.t, distance: non_neg_integer}
     defstruct [stops: [], distance: 0]
@@ -25,47 +24,58 @@ defmodule Trains.Routes do
     @doc """
     Prints a route
 
+    ## Parameters:
+
+      - route: `Trains.Routes.Route` route to format
+
     ## Examples
 
-      iex> Trains.Routes.to_string(%Trains.Routes.Route{stops: [], distance: 0})
-      ""
-      iex> Trains.Routes.to_string(%Trains.Routes.Route{stops: ["A","B"], distance: 10})
-      "A-B"
-      iex> Trains.Routes.to_string(%Trains.Routes.Route{stops: ["A","B","C"], distance: 15}
-      "A-B-C"
+        # Formats two stop routes
+        iex> Trains.Routes.to_string(%Trains.Routes.Route{stops: ["A","B"], distance: 10})
+        "A-B"
+
+        # Formats multiple stop routes
+        iex> Trains.Routes.to_string(%Trains.Routes.Route{stops: ["A","B","C"], distance: 15}
+        "A-B-C"
     """
-    def to_string(route), do: Enum.reduce(route.stops, &(&1 <> "-" <> &2))
+    def to_string(%Route{} = route), do: Enum.reduce(route.stops, &(&1 <> "-" <> &2))
   end
 
 
   @doc """
   Create new Route
 
+  ## Parameters
+
+    - origin: origin town
+    - destination: destination town
+    - distance: distance between the two towns
+
   ## Examples
 
-    # Valid routes are properly created
-    iex> Trains.Routes.new("A", "B", 5)
-    {:ok, %Trains.Routes.Route{stops: ["A","B"], distance: 5}}
+      # Valid routes are properly created
+      iex> Trains.Routes.new("A", "B", 5)
+      {:ok, %Trains.Routes.Route{stops: ["A","B"], distance: 5}}
 
-    # Routes with non integer distances are rejected
-    iex> Trains.Routes.new("A", "B", "9")
-    {:error, :invalid_route}
-    iex> Trains.Routes.new("A", "B", :error)
-    {:error, :invalid_route}
+      # Routes with non integer distances are rejected
+      iex> Trains.Routes.new("A", "B", "9")
+      {:error, :invalid_route}
+      iex> Trains.Routes.new("A", "B", :error)
+      {:error, :invalid_route}
 
-    # Routes with negative distances are rejected
-    iex> Trains.Routes.new("A", "B", -3)
-    {:error, :invalid_route}
+      # Routes with negative distances are rejected
+      iex> Trains.Routes.new("A", "B", -3)
+      {:error, :invalid_route}
 
-    # Routes with same origin and destination are rejected
-    iex> Trains.Routes.new("A", "A", 9)
-    {:error, :invalid_route}
+      # Routes with same origin and destination are rejected
+      iex> Trains.Routes.new("A", "A", 9)
+      {:error, :invalid_route}
 
-    # Routes with non single character origin or destination are rejected
-    iex> Trains.Routes.new("AZ", "B", 10)
-    {:error, :invalid_route}
-    iex> Trains.Routes.new("A", "WUT", 20)
-    {:error, :invalid_route}
+      # Routes with non single character origin or destination are rejected
+      iex> Trains.Routes.new("AZ", "B", 10)
+      {:error, :invalid_route}
+      iex> Trains.Routes.new("A", "WUT", 20)
+      {:error, :invalid_route}
   """
   def new(origin, destination, distance) do
     route = %Route{stops: [origin, destination], distance: distance}
@@ -79,21 +89,27 @@ defmodule Trains.Routes do
   @doc """
   Adds a stop to a given route
 
+  ## Parameters
+
+    - route: `Trains.Routes.Route` route to add a stop to
+    - town: town to add
+    - distance: distance added to route (ie: distance from original route destination to new town)
+
   ## Examples
 
-    iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 10}, "B", 5)
-    {:ok, %Trains.Routes.Route{stops: ["A", "C", "B"], distance: 15}}
+      iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 10}, "B", 5)
+      {:ok, %Trains.Routes.Route{stops: ["A", "C", "B"], distance: 15}}
 
-    iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 5}, :error, 5)
-    {:error, :invalid_route}
+      iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 5}, :error, 5)
+      {:error, :invalid_route}
 
-    # It does not allow negative distances
-    iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 5}, "B", -5)
-    {:error, :invalid_route}
+      # It does not allow negative distances
+      iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 5}, "B", -5)
+      {:error, :invalid_route}
 
-    # It does not allow adding next step equal to current destination
-    iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 5}, "C", 2)
-    {:error, :invalid_route}
+      # It does not allow adding next step equal to current destination
+      iex> Trains.Routes.add_stop(%Trains.Routes.Route{stops: ["A", "C"], distance: 5}, "C", 2)
+      {:error, :invalid_route}
   """
   def add_stop(%Route{} = route, town, distance) do
     if (valid_town?(town) && valid_distance?(distance) && destination(route) != town) do
@@ -106,39 +122,42 @@ defmodule Trains.Routes do
   @doc """
   Validates a given route
 
+  ## Parameters
+    - route: `Trains.Routes.Route` route to validate
+
   ## Examples
 
-    # Empty routes are invalid
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: [], distance: 9})
-    false
+      # Empty routes are invalid
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: [], distance: 9})
+      false
 
-    # Routes with a single town are invalid
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A"], distance: 9})
-    false
+      # Routes with a single town are invalid
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A"], distance: 9})
+      false
 
-    # Routes with non capital single character town names are invalid
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["a","B"], distance: 9})
-    false
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","BZ"], distance: 9})
-    false
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["","B"], distance: 9})
-    false
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: [:c,"B"], distance: 9})
-    false
+      # Routes with non capital single character town names are invalid
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["a","B"], distance: 9})
+      false
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","BZ"], distance: 9})
+      false
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["","B"], distance: 9})
+      false
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: [:c,"B"], distance: 9})
+      false
 
-    # Routes with a single capitalized special char as town name are valid
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["Ñ", "Ö"], distance: 9})
-    true
+      # Routes with a single capitalized special char as town name are valid
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["Ñ", "Ö"], distance: 9})
+      true
 
-    # Routes with negative distance are invalid
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","B"], distance: -3})
-    false
+      # Routes with negative distance are invalid
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","B"], distance: -3})
+      false
 
-    # Routes with non integer distances are invalid
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","B"], distance: "9"})
-    false
-    iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","B"], distance: :error})
-    false
+      # Routes with non integer distances are invalid
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","B"], distance: "9"})
+      false
+      iex> Trains.Routes.is_valid?(%Trains.Routes.Route{stops: ["A","B"], distance: :error})
+      false
   """
   def is_valid?(%Route{stops: stops, distance: distance}) do
     Enum.count(stops) > 1
@@ -149,10 +168,13 @@ defmodule Trains.Routes do
   @doc """
   Get origin for route
 
+  ## Parameters
+    - route: `Trains.Routes.Route` route to get origin from
+
   ## Examples
 
-    iex> Trains.Routes.origin(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
-    "C"
+      iex> Trains.Routes.origin(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
+      "C"
   """
   def origin(%Route{stops: [origin|_], distance: _}) do
     origin
@@ -161,10 +183,13 @@ defmodule Trains.Routes do
   @doc """
   Get destination for route
 
+  ## Parameters
+    - route: `Trains.Routes.Route` route to look into
+
   ## Examples
 
-    iex> Trains.Routes.destination(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
-    "F"
+      iex> Trains.Routes.destination(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
+      "F"
   """
   def destination(%Route{stops: stops, distance: _}) do
     hd(Enum.reverse(stops))
@@ -173,25 +198,31 @@ defmodule Trains.Routes do
   @doc """
   Get distance for route
 
+  ## Parameters
+    - route: `Trains.Routes.Route` route to look into
+
   ## Examples
 
-    iex> Trains.Routes.distance(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
-    10
+      iex> Trains.Routes.distance(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
+      10
   """
   def distance(%Route{stops: _, distance: distance}) do
     distance
   end
 
   @doc """
-  Get destination for route
+  Get number of stops in this route
+
+  ## Parameters
+    - route: `Trains.Routes.Route` route to look into
 
   ## Examples
 
-    iex> Trains.Routes.num_stops(%Trains.Routes.Route{stops: ["A","B"], distance: 7})
-    1
+      iex> Trains.Routes.num_stops(%Trains.Routes.Route{stops: ["A","B"], distance: 7})
+      1
 
-    iex> Trains.Routes.num_stops(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
-    2
+      iex> Trains.Routes.num_stops(%Trains.Routes.Route{stops: ["C", "A", "F"], distance: 10})
+      2
   """
   def num_stops(%Route{stops: stops, distance: _}) do
     Enum.count(stops) - 1

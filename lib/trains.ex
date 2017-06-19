@@ -2,18 +2,23 @@ defmodule Trains do
   alias Trains.{Parser, Graph, Routes}
 
   @moduledoc """
-  Trains module
+  Main Trains module.
   """
 
+  @doc """
+  Main Trains function
+
+  Runs the given tests using the configuration routes given in command line.
+  """
   def main(args) do
     args |> parse_args |> process
   end
 
-  def process([]) do
+  defp process([]) do
     IO.puts "Usage: trains --config=\"AB5,AC7,BC3\""
   end
 
-  def process(options) do
+  defp process(options) do
     graph = load_graph(options[:config])
     run_testsuite(graph)
   end
@@ -73,7 +78,6 @@ defmodule Trains do
     {:ok, graph} = Trains.Graph.new(routes)
     graph
   end
-
 
   defp parse_args(args) do
     {options, _, _} = OptionParser.parse(

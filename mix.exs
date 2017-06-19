@@ -2,13 +2,22 @@ defmodule Trains.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :trains,
-     version: "0.1.0",
-     elixir: "~> 1.4",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     escript: [main_module: Trains],
-     deps: deps()]
+    [
+       app: :trains,
+       version: "0.1.0",
+       elixir: "~> 1.4",
+       build_embedded: Mix.env == :prod,
+       start_permanent: Mix.env == :prod,
+       escript: [main_module: Trains],
+       deps: deps(),
+
+       # Docs
+       name: "Trains",
+       docs: [
+         main: "Trains", # The main page in the docs
+         extras: ["README.md"]
+       ]
+     ]
   end
 
   # Configuration for the OTP application
@@ -30,7 +39,8 @@ defmodule Trains.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:credo, "~> 0.8", only: [:dev, :test], runtime: false}
+      {:credo, "~> 0.8", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.14", only: :dev, runtime: false}
     ]
   end
 end

@@ -5,15 +5,22 @@ defmodule Trains.Parser do
   @path_regex ~r/^\p{Lu}(-\p{Lu})+$/
 
   @moduledoc """
-  Documentation for Trains Parser.
+  Parser
+
+  Parses routes and path to help other modules interpret user input.
   """
 
   @doc """
   Parse route information from a comma separared route steps string
+
   Each step should be:
    - A single capital letter for origin
    - A single capital letter for destination
    - A positive integer for distance
+
+  ## Parameters
+
+    - info: a coma separated list of routes, using `AB9` format.
 
   ## Examples
 
@@ -38,7 +45,6 @@ defmodule Trains.Parser do
       # Empty input is also valid
       iex> Trains.Parser.parse_routes("")
       {:ok, []}
-
   """
   def parse_routes(info) when is_binary(info) do
     pieces = String.split(info, ~r/\s*,\s*/, trim: true)
@@ -60,17 +66,21 @@ defmodule Trains.Parser do
 
   ## Examples
 
-    iex> Trains.Parser.parse_path("A-B-C-D")
-    {:ok, ["A", "B", "C", "D"]}
+      # Parses a correctly encoded path
+      iex> Trains.Parser.parse_path("A-B-C-D")
+      {:ok, ["A", "B", "C", "D"]}
 
-    iex> Trains.Parser.parse_path("A")
-    {:error, :invalid_input}
+      # Rejects single stop paths
+      iex> Trains.Parser.parse_path("A")
+      {:error, :invalid_input}
 
-    iex> Trains.Parser.parse_path("A-B-C-")
-    {:error, :invalid_input}
+      # Rejects malformed path strings
+      iex> Trains.Parser.parse_path("A-B-C-")
+      {:error, :invalid_input}
 
-    iex> Trains.Parser.parse_path("ABC")
-    {:error, :invalid_input}
+      # Rejects malformed routes
+      iex> Trains.Parser.parse_path("ABC")
+      {:error, :invalid_input}
   """
   def parse_path(path) do
     if Regex.match?(@path_regex, path) do
