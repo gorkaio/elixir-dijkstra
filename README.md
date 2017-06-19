@@ -54,18 +54,73 @@ Output #9: 9
 Output #10: 7
 ```
 
-## Installation
+## Solution
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `trains` to your list of dependencies in `mix.exs`:
+First of all: *why Elixir?*
 
-```elixir
-def deps do
-  [{:trains, "~> 0.1.0"}]
-end
-```
+There's a technical reason for that, of course: I think functional programming better fits this kind of problems and
+Elixir absolutely beats the performance of my daily language, PHP. But that is not the real reason why I chose Elixir,
+for good or bad.
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/trains](https://hexdocs.pm/trains).
+In the previous interview you recommended me to use PHP for the assignment as this is the language I'm more used to, the
+one I work with everyday and that I've being using professionally for many years. In fact that would have been much
+easier for me, and the resulting code would be much nicer, well structured and clean.
+
+But, as a matter of fact, PHP is not either in the proposed languages for the assignments and is probably not what I
+would be using in my daily work at ThoughtWorks. So I thought it would be fair to use a language I'm not used to, one
+that I'm just learning to use based on a paradigm I have not seen since my University years, and prove what I would be
+capable of doing when confronted with a new language. Even if that implies that it took me more time than I expected
+and the result is not as clean and well implemented as it would have been in PHP. There are many thing that could be
+improved in this code, and I'm aware of some of them. But, all in all, I think it was the right decision.
+
+*About the design decisions I made*, you can take a look at the documentation. I tried to use the ubiquitous language
+derived from the problem description and model each part of the system accordingly. A `route` joins two or more `towns`,
+first one of which is the `origin` and last the `destination`, and there is a certain `distance` that separates them.
+A `graph` is composed of simple two step routes that configure the railroad map that will be used to calculate `trips`
+following a certain route, `path` being the breadcrumb of such route. The `graph` is responsible for calculating the
+possible routes between two towns: either using a certain criteria (maximum stops, maximum distance, fixed number of
+stops) or finding the shortest route available between `origin` and `destination`.
+
+I also implemented a basic parser capable of understanding basic `route` and `path` definitions in order to configure
+the system and simplify the tests.
+
+And, finally, there's the main `Trains` module that receives a `graph` configuration from the command line, parses it
+and runs the proposed tests, rendering their output.
+
+### Installation
+
+If you don't have `Elixir` installed, you will need to install it following the [official installation docs](https://elixir-lang.org/install.html).
+
+As an alternative method, you might use Docker. We will see both methods bellow.
+
+### Build
+
+You can build the app using the following command:
+
+  - With Elixir: `MIX_ENV=prod mix escript.build`
+  - With Docker: `docker run -it --rm -eMIX_ENV=prod -v$(pwd):/app -w/app elixir bash -c "mix escript.build"`
+  
+### Run
+
+To run the app you must provide the graph configuration it will work with:
+
+`./trains --config="AB5,BC4,CD8,DC8,DE6,AD5,CE2,EB3,AE7"`
+
+This will run the proposed tests and show its output on the console.
+
+## Run tests
+
+Ro run all the tests, use the following command:
+
+  - With Elixir: `mix test`
+  - With Docker: `docker run -it --rm -v$(pwd):/app -w/app elixir bash -c "mix test"`
+
+## Generate documentation
+
+This documentation, and all the API docs, are generated using:
+
+  - With Elixir: `mix docs`
+  - With Docker: `docker run -it --rm -v$(pwd):/app -w/app elixir bash -c "mix docs"`
+  
+Once generated, you will find it in `/doc` folder, HTML formatted.
 

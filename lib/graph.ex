@@ -4,7 +4,7 @@ defmodule Trains.Graph do
   @moduledoc """
   Routes graph
 
-  `Trains.Graph` handles the initial directed graph configuration and every function related to route calculation.
+  `Trains.Graph handles the initial directed graph configuration and every function related to route calculation.
   """
 
   @doc """
